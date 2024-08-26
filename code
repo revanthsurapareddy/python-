@@ -1,0 +1,68 @@
+import sqlite3
+import datetime
+
+def connect_db():
+    return sqlite3.connect('inventory.db')
+
+# Step 2: Create tables
+def create_tables(conn):
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS inventory (
+            id INTEGER PRIMARY KEY,
+            item_name TEXT,
+            stock_level INTEGER,
+            reorder_level INTEGER,
+            last_updated DATE
+        )
+    ''')
+    conn.commit()
+
+def add_item(conn, item_name, stock_level, reorder_level):
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO inventory (item_name, stock_level, reorder_level, last_updated)
+        VALUES (?, ?, ?, ?)
+    ''', (item_name, stock_level, reorder_level, datetime.date.today()))
+    conn.commit()
+
+def update_stock(conn, item_id, new_stock_level):
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE inventory
+        SET stock_level = ?, last_updated = ?
+        WHERE id = ?
+    ''', (new_stock_level, datetime.date.today(), item_id))
+    conn.commit()
+
+def fetch_stock(conn):
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM inventory
+    ''')
+    return cursor.fetchall()
+
+def check_reorder(conn):
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT * FROM inventory WHERE stock_level < reorder_level
+    ''')
+    return cursor.fetchall()
+
+def generate_report(conn):
+    stock_data = fetch_stock(conn)
+    for item in stock_data:
+        print(f"Item: {item[1]}, Stock Level: {item[2]}, Reorder Level: {item[3]}, Last Updated: {item[4]}")
+    
+    print("\nItems to Reorder:")
+    items_to_reorder = check_reorder(conn)
+    for item in items_to_reorder:
+        print(f"Item: {item[1]}, Stock Level: {item[2]}, Reorder Level: {item[3]}")
+
+conn = connect_db()
+create_tables(conn)
+add_item(conn, 'Widget A', 50, 10)
+add_item(conn, 'Widget B', 20, 5)
+update_stock(conn, 1, 8)  # Assuming item with id=1 is 'Widget A'
+generate_report(conn)
+conn.close()
